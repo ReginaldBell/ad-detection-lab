@@ -1,0 +1,3 @@
+lab_domain_name: example.local
+lab_domain_netbios: EXAMPLE
+lab_dsrm_password: "{{ lookup('env', 'LAB_DSRM_PASSWORD') | default(lookup('env', 'LAB_DC_ADMIN_PASSWORD'), true) }}"
