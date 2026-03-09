@@ -6,6 +6,10 @@ This lab simulates a small enterprise Active Directory environment with a dedica
 
 ## Lab Components
 
+![Lab Architecture](../architecture/lab-architecture-diagram.png)
+
+> Source file: [architecture/lab-architecture-diagram.drawio](../architecture/lab-architecture-diagram.drawio)
+
 See [architecture/network-topology.md](../architecture/network-topology.md) for the full network diagram and port reference.
 
 | VM | Hostname | IP | OS | RAM | Role |

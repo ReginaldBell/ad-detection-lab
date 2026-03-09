@@ -1,5 +1,11 @@
 # Network Topology
 
+## Lab Architecture Diagram
+
+![Enterprise AD Detection Lab Architecture](lab-architecture-diagram.png)
+
+> Source: [lab-architecture-diagram.drawio](lab-architecture-diagram.drawio) — open in [draw.io](https://app.diagrams.net/) to edit.
+
 ## Lab Network Diagram
 
 ```

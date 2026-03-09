@@ -1,0 +1,94 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0" version="29.6.1">
+  <diagram name="Page-1" id="6IiewvB3PB_MyjySZA3s">
+    <mxGraphModel dx="2058" dy="1186" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1000" background="#ffffff" math="0" shadow="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1a1a1a" value="Enterprise AD Detection Lab Architecture" vertex="1">
+          <mxGeometry height="35" width="800" x="200" y="15" as="geometry" />
+        </mxCell>
+        <mxCell id="network" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#1976D2;strokeWidth=3;fillColor=#E3F2FD;align=center;verticalAlign=top;fontSize=13;fontStyle=1;padding=15" value="VirtualBox Host-Only Network: 192.168.56.0/24" vertex="1">
+          <mxGeometry height="750" width="1100" x="50" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="dc-container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#FF8F00;strokeWidth=2;fillColor=#FFF8E1;align=center;verticalAlign=top;fontSize=11;fontStyle=1;padding=10" value="Domain Controllers (corp.techcorp.internal) - 1800 Users - HA Setup" vertex="1">
+          <mxGeometry height="300" width="300" x="60" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="dc01" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#D32F2F;strokeWidth=2;fillColor=#FFEBEE;align=center;verticalAlign=middle;fontSize=9" value="dc01 - Primary DC&#xa;192.168.56.10&#xa;Windows Server 2022&#xa;AD Forest&#xa;DNS Server&#xa;900 Users" vertex="1">
+          <mxGeometry height="110" width="130" x="75" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="dc02" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#D32F2F;strokeWidth=2;fillColor=#FFEBEE;align=center;verticalAlign=middle;fontSize=9" value="dc02 - Secondary DC&#xa;192.168.56.11&#xa;Windows Server 2022&#xa;AD Replica&#xa;DNS Server&#xa;900 Users" vertex="1">
+          <mxGeometry height="110" width="130" x="225" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="replication" edge="1" parent="1" source="dc01" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF8F00;strokeWidth=3;fontSize=9" target="dc02" value="AD Replication">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ws-container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#388E3C;strokeWidth=2;fillColor=#E8F5E9;align=center;verticalAlign=top;fontSize=11;fontStyle=1;padding=10" value="Domain Workstation - Attack Surface" vertex="1">
+          <mxGeometry height="300" width="310" x="395" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="wkstn01" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#388E3C;strokeWidth=2;fillColor=#E8F5E9;align=center;verticalAlign=middle;fontSize=9" value="wkstn01&#xa;192.168.56.104&#xa;Windows 10 Pro&#xa;Domain Member&#xa;Sysmon Logging" vertex="1">
+          <mxGeometry height="110" width="145" x="410" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="domain-join" edge="1" parent="1" source="dc01" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#388E3C;strokeWidth=2;fontSize=9" target="wkstn01" value="Domain Join">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="siem-container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#7B1FA2;strokeWidth=2;fillColor=#F3E5F5;align=center;verticalAlign=top;fontSize=11;fontStyle=1;padding=10" value="SIEM Server (Wazuh 4.7.5)" vertex="1">
+          <mxGeometry height="300" width="320" x="740" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="siem01" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#7B1FA2;strokeWidth=2;fillColor=#F3E5F5;align=center;verticalAlign=middle;fontSize=9" value="siem01&#xa;192.168.56.50&#xa;Ubuntu 24.04 LTS&#xa;Wazuh Manager&#xa;Web Dashboard" vertex="1">
+          <mxGeometry height="110" width="145" x="755" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="dc-siem" edge="1" parent="1" source="dc01" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7B1FA2;strokeWidth=2;fontSize=8" target="siem01" value="Events (1514/514)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wkstn-siem" edge="1" parent="1" source="wkstn01" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7B1FA2;strokeWidth=2;fontSize=8" target="siem01" value="Sysmon Events">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="infra-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontStyle=1;fontColor=#333" value="Infrastructure and Automation" vertex="1">
+          <mxGeometry height="25" width="1080" x="60" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="terraform" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#1976D2;strokeWidth=2;fillColor=#BBDEFB;align=center;verticalAlign=middle;fontSize=9" value="Terraform&#xa;VM Provisioning" vertex="1">
+          <mxGeometry height="90" width="140" x="80" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="ansible" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#1976D2;strokeWidth=2;fillColor=#BBDEFB;align=center;verticalAlign=middle;fontSize=9" value="Ansible&#xa;Configuration" vertex="1">
+          <mxGeometry height="90" width="140" x="240" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="powershell" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#1976D2;strokeWidth=2;fillColor=#BBDEFB;align=center;verticalAlign=middle;fontSize=9" value="PowerShell&#xa;AD Provisioning" vertex="1">
+          <mxGeometry height="90" width="140" x="400" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="virtualbox" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#1976D2;strokeWidth=2;fillColor=#BBDEFB;align=center;verticalAlign=middle;fontSize=9" value="VirtualBox 7.0&#xa;Hypervisor" vertex="1">
+          <mxGeometry height="90" width="140" x="560" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="sysmon" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#1976D2;strokeWidth=2;fillColor=#BBDEFB;align=center;verticalAlign=middle;fontSize=9" value="Sysmon Config&#xa;Process Logging" vertex="1">
+          <mxGeometry height="90" width="140" x="720" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="wazuh" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#1976D2;strokeWidth=2;fillColor=#BBDEFB;align=center;verticalAlign=middle;fontSize=9" value="Wazuh Rules&#xa;Detection Rules" vertex="1">
+          <mxGeometry height="90" width="140" x="880" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="detection-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontStyle=1;fontColor=#333" value="Detection and Monitoring" vertex="1">
+          <mxGeometry height="25" width="1080" x="60" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="sysmon-log" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#C62828;strokeWidth=2;fillColor=#FFCDD2;align=center;verticalAlign=middle;fontSize=9" value="Sysmon Logging&#xa;Process/Network/File" vertex="1">
+          <mxGeometry height="100" width="140" x="80" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="rules" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#C62828;strokeWidth=2;fillColor=#FFCDD2;align=center;verticalAlign=middle;fontSize=9" value="Wazuh Rules&#xa;Correlation" vertex="1">
+          <mxGeometry height="100" width="140" x="240" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="attacks" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#C62828;strokeWidth=2;fillColor=#FFCDD2;align=center;verticalAlign=middle;fontSize=8" value="Attack Simulation&#xa;T1110.003&#xa;T1078.003&#xa;T1566.002" vertex="1">
+          <mxGeometry height="100" width="140" x="400" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="mitre" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#C62828;strokeWidth=2;fillColor=#FFCDD2;align=center;verticalAlign=middle;fontSize=9" value="MITRE ATT&amp;CK&#xa;5 Techniques" vertex="1">
+          <mxGeometry height="100" width="140" x="560" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="logging" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#C62828;strokeWidth=2;fillColor=#FFCDD2;align=center;verticalAlign=middle;fontSize=9" value="Log Aggregation&#xa;Event Forwarding" vertex="1">
+          <mxGeometry height="100" width="140" x="720" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="users" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#5E35B1;strokeWidth=2;fillColor=#EDE7F6;align=center;verticalAlign=middle;fontSize=9" value="AD Objects&#xa;1800 Users&#xa;Groups/OUs" vertex="1">
+          <mxGeometry height="100" width="140" x="880" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=8;fontColor=#666" value="Legend: Dual DC HA | 1800 Users | Wazuh SIEM | 5 MITRE Techniques | Real-time Detection" vertex="1">
+          <mxGeometry height="40" width="1100" x="50" y="730" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

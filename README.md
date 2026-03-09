@@ -8,6 +8,8 @@ A homelab environment for practicing Active Directory administration, attack sim
 
 ## Architecture Overview
 
+![Lab Architecture](architecture/lab-architecture-diagram.png)
+
 | VM | Hostname | IP Address | OS | RAM | Role |
 |---|---|---|---|---|---|
 | dc01 | DC01 | 192.168.56.10 | Windows Server 2016 | 4 GB | Primary Domain Controller, DNS |
