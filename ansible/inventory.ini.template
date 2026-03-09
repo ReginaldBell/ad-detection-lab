@@ -1,0 +1,47 @@
+# Ansible Inventory Template — AD Detection Lab
+# ================================================
+# Copy this file to: ansible/inventory.ini
+# Fill in the placeholders, then run:
+#   ansible windows -i ansible/inventory.ini -m win_ping
+#
+# NOTE: inventory.ini is .gitignored — never commit credentials.
+# Add "ansible/inventory.ini" to .gitignore if not already present.
+
+[domain_controllers]
+dc01    ansible_host=192.168.56.10
+dc02    ansible_host=192.168.56.102
+
+[workstations]
+wkstn01 ansible_host=192.168.56.20
+
+[windows:children]
+domain_controllers
+workstations
+
+[windows:vars]
+ansible_user=Administrator
+ansible_password=<YOUR_ADMIN_PASSWORD>
+ansible_connection=winrm
+ansible_winrm_transport=basic
+ansible_winrm_server_cert_validation=ignore
+ansible_port=5985
+ansible_winrm_operation_timeout_sec=60
+ansible_winrm_read_timeout_sec=70
+
+# Optional: specify a specific Python interpreter on the control node
+# ansible_python_interpreter=/usr/bin/python3
+
+# ================================================
+# Usage Examples
+# ================================================
+# Test connectivity to all Windows hosts:
+#   ansible windows -i inventory.ini -m win_ping
+#
+# Run a command on all DCs:
+#   ansible domain_controllers -i inventory.ini -m win_command -a "ipconfig"
+#
+# Run a PowerShell script on wkstn01:
+#   ansible wkstn01 -i inventory.ini -m win_shell -a "Get-ADUser -Filter * | Measure-Object"
+#
+# Copy a file to all Windows hosts:
+#   ansible windows -i inventory.ini -m win_copy -a "src=scripts/powershell/04-winrm-setup.ps1 dest=C:\\Temp\\"

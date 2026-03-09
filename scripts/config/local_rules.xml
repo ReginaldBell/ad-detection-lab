@@ -1,0 +1,108 @@
+<!--
+  local_rules.xml
+  ===============
+  Custom Wazuh detection rules for the AD Detection Lab.
+  Deploy to siem01 at: /var/ossec/etc/rules/local_rules.xml
+
+  Deploy commands:
+    sudo cp local_rules.xml /var/ossec/etc/rules/local_rules.xml
+    sudo chown root:wazuh /var/ossec/etc/rules/local_rules.xml
+    sudo chmod 660 /var/ossec/etc/rules/local_rules.xml
+    sudo systemctl restart wazuh-manager
+
+  Validate:
+    sudo /var/ossec/bin/wazuh-logtest
+
+  Rules: 100001–100005
+  Coverage: T1558.003, T1110.003, T1078, T1021.002, T1136.001
+-->
+
+<group name="windows,ad_detection_lab,">
+
+  <!-- ================================================================
+       Rule 100001: Kerberoasting Detection
+       MITRE: T1558.003 — Steal or Forge Kerberos Tickets: Kerberoasting
+       Trigger: EventID 4769 with RC4 encryption type (0x17)
+       RC4 (etype 23/0x17) is a weak downgrade — modern environments
+       use AES. RC4 service ticket requests indicate Kerberoasting.
+       ================================================================ -->
+  <rule id="100001" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4769$</field>
+    <field name="win.eventdata.ticketEncryptionType">^0x17$</field>
+    <description>Possible Kerberoasting: RC4 Kerberos service ticket requested (T1558.003)</description>
+    <mitre>
+      <id>T1558.003</id>
+    </mitre>
+    <group>attack,kerberoasting,credential_access,</group>
+  </rule>
+
+  <!-- ================================================================
+       Rule 100002: Password Spray Detection
+       MITRE: T1110.003 — Brute Force: Password Spraying
+       Trigger: 10+ EventID 4625 (failed logon) from the same source
+                IP within a 60-second window.
+       Base rule 60122 = Windows failed logon (Wazuh built-in).
+       ================================================================ -->
+  <rule id="100002" level="10" frequency="10" timeframe="60">
+    <if_matched_sid>60122</if_matched_sid>
+    <same_field>win.eventdata.ipAddress</same_field>
+    <description>Password spray detected: 10+ failed logons from same source IP within 60s (T1110.003)</description>
+    <mitre>
+      <id>T1110.003</id>
+    </mitre>
+    <group>attack,password_spray,credential_access,</group>
+  </rule>
+
+  <!-- ================================================================
+       Rule 100003: Privilege Escalation via Group Membership
+       MITRE: T1078 — Valid Accounts
+       Trigger: EventID 4728 (member added to global security group)
+                where the target group is Domain Admins.
+       ================================================================ -->
+  <rule id="100003" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4728$</field>
+    <field name="win.eventdata.targetUserName" type="pcre2">(?i)Domain Admins</field>
+    <description>User added to Domain Admins group — privilege escalation (T1078)</description>
+    <mitre>
+      <id>T1078</id>
+    </mitre>
+    <group>attack,privilege_escalation,</group>
+  </rule>
+
+  <!-- ================================================================
+       Rule 100004: Lateral Movement via Explicit Credentials
+       MITRE: T1021.002 — Remote Services: SMB/Windows Admin Shares
+       Trigger: EventID 4648 (logon with explicit credentials) where
+                the target server is not localhost (remote connection).
+       ================================================================ -->
+  <rule id="100004" level="10">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4648$</field>
+    <field name="win.eventdata.targetServerName" negate="yes">(?i)localhost|127\.0\.0\.1</field>
+    <description>Lateral movement: explicit credential logon to remote host detected (T1021.002)</description>
+    <mitre>
+      <id>T1021.002</id>
+    </mitre>
+    <group>attack,lateral_movement,</group>
+  </rule>
+
+  <!-- ================================================================
+       Rule 100005: Rogue Account Creation
+       MITRE: T1136.001 — Create Account: Local Account
+       Trigger: EventID 4720 (new user account created).
+       All account creations are flagged for review — correlate with
+       change management tickets to verify authorization.
+       ================================================================ -->
+  <rule id="100005" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">^4720$</field>
+    <description>New domain user account created — verify if authorized (T1136.001)</description>
+    <mitre>
+      <id>T1136.001</id>
+    </mitre>
+    <group>attack,persistence,account_creation,</group>
+  </rule>
+
+</group>

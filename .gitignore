@@ -1,0 +1,36 @@
+# VM disk images — never commit these
+*.vdi
+*.vmdk
+*.vhd
+*.vhdx
+*.ova
+*.ovf
+*.iso
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
+# Logs
+*.log
+*.evtx
+
+# Secrets
+.env
+*.env.*
+secrets.yml
+credentials.json
+
+# Backups
+*.bak
+*.tmp
+
+# OS artifacts
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Ansible vault
+*.vault
