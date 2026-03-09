@@ -59,6 +59,10 @@ See [architecture/network-topology.md](architecture/network-topology.md) for the
 7. [Detection rules](docs/08-detection-rules.md)
 8. [Run attack simulations](detections/attack-simulation-guide.md)
 
+**Reference:**
+- [Useful Commands](docs/useful-commands.md) — all key commands used in this lab
+- [Common Issues & Fixes](docs/common-issues.md) — real errors encountered with solutions and screenshots
+
 ---
 
 ## Repository Structure
