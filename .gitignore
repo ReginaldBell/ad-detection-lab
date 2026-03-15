@@ -7,8 +7,8 @@ vault.yml
 
 # Internal audit and working documents
 docs/project-accuracy-audit-*.md
+docs/copilot-commit-prompt.md
 
 # Credentials — keep local overrides out of the repo
 ansible/inventory.local.ini
 group_vars/local_vault.yml
-
