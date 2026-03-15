@@ -2,19 +2,21 @@
 
 Ordered screenshots documenting the complete lab build process, from prerequisites through Wazuh detection.
 
+> A small number of early screenshots capture Terraform experiments and downloads. Those images are preserved as build-history context only; Terraform was not used in the final lab workflow.
+
 > Errors and troubleshooting screenshots are cross-referenced in [docs/common-issues.md](../docs/common-issues.md).
 
 ---
 
-## Phase 1: Prerequisites (01–08)
+## Phase 1: Host Preparation (01–08)
 
 | File | What it shows |
 |---|---|
-| `01-prereqs-terraform-download-page.webp` | Terraform download page (hashicorp.com) |
+| `01-prereqs-terraform-download-page.webp` | Terraform download page captured during early tooling exploration; Terraform was not used in the final build |
 | `02-prereqs-iso-files-windows-server-win10.webp` | Windows Explorer — ISOs folder with Windows Server and Windows 10 ISOs |
 | `03-prereqs-ubuntu-2404-download.webp` | Ubuntu 24.04 LTS download page |
-| `04-prereqs-wsl2-install-terraform-gpg.webp` | WSL2: `wsl --install` Ubuntu, Terraform HashiCorp GPG key download |
-| `05-prereqs-terraform-114-installed.webp` | WSL2: `terraform --version` → 1.14.6 confirmed |
+| `04-prereqs-wsl2-install-terraform-gpg.webp` | WSL2: `wsl --install` Ubuntu and early Terraform package prep captured during discarded experimentation |
+| `05-prereqs-terraform-114-installed.webp` | WSL2: `terraform --version` confirmation from early experimentation; not part of the final workflow |
 | `06-prereqs-ansible-winrm-installed.webp` | WSL2: python3-winrm packages installing, `ansible --version` 2.20.3 |
 | `07-prereqs-ansible-pywinrm-lab-dir.webp` | WSL2: Ansible + pywinrm install, enterprise-ad-lab directory created |
 | `08-prereqs-ansible-version-confirmed.webp` | WSL2: Ansible version confirmed, ISOs listed in directory |
@@ -25,7 +27,7 @@ Ordered screenshots documenting the complete lab build process, from prerequisit
 
 | File | What it shows |
 |---|---|
-| `09-terraform-main-tf-vm-configs.webp` | WSL2: Terraform `main.tf` with VM configs and network summary |
+| `09-terraform-main-tf-vm-configs.webp` | WSL2: discarded local Terraform `main.tf` draft from an abandoned approach; not used in the final build and not tracked in this repo |
 | `10-prereqs-isos-with-ubuntu-added.webp` | Explorer — ISOs folder with ubuntu-24.04.4 added |
 | `11-vbox-all-vms-powered-off-no-hostonly.webp` | VirtualBox Manager — all 4 VMs Powered Off, siem01 missing host-only adapter |
 | `12-vbox-kernel-module-failure-wsl2.webp` | WSL2: VirtualBox kernel module failure + VBoxManage errors ⚠️ |
@@ -95,11 +97,16 @@ Ordered screenshots documenting the complete lab build process, from prerequisit
 | File | What it shows |
 |---|---|
 | `50-ansible-inventory-dc01-unreachable.webp` | WSL2: Ansible inventory created, dc01 win_ping UNREACHABLE ⚠️ |
+| `51-ansible-still-failing.webp` | WSL2: repeated dc01 connectivity failure while validating the inventory and WinRM state ⚠️ |
 | `52-ansible-sed-password-fix.webp` | WSL2: `sed` to fix password placeholder in inventory |
 | `53-ansible-dc01-success-pong.webp` | WSL2: dc01 SUCCESS — pong! First successful win_ping ✅ |
 | `54-ansible-dc01-dc02-siem01-success-wkstn01-unreachable.webp` | WSL2: dc01+dc02+siem01 SUCCESS, wkstn01 unreachable (no route to .104) ⚠️ |
+| `55-ansible-dc01-dc02-siem01-success-wkstn01-no-route.webp` | WSL2: all hosts except wkstn01 reachable; wkstn01 still failing with no-route symptoms ⚠️ |
 | `56-siem01-ssh-status-ansible-not-found.webp` | siem01: SSH status running, `ansible` not installed on siem01 |
+| `57-ansible-wkstn01-unreachable-siem01-ok.webp` | WSL2: siem01 reachable over SSH while wkstn01 remains unreachable over WinRM ⚠️ |
 | `58-ansible-all-except-wkstn01-success.webp` | WSL2: dc01/dc02/siem01 SUCCESS, wkstn01 UNREACHABLE ⚠️ |
+| `59-ansible-wkstn01-unreachable-ping-100pct-loss.webp` | WSL2: wkstn01 still unreachable with 100% ping loss during routing troubleshooting ⚠️ |
+| `60-ansible-wkstn01-ping-failing.webp` | WSL2: direct ping and Ansible checks against wkstn01 continue to fail before the final IP correction ⚠️ |
 | `61-wsl2-ping-104-failing-no-route.webp` | WSL2: ping 192.168.56.104 failing; `ip route/addr` shows WSL2 subnet only ⚠️ |
 | `62-wsl2-ping-104-destination-unreachable.webp` | WSL2: ping .104 "Destination Host Unreachable" ⚠️ |
 | `63-wsl2-ping-104-105-both-fail.webp` | WSL2: ping .104 fail, sed to .105, ping .105 also fail ⚠️ |
@@ -113,11 +120,11 @@ Ordered screenshots documenting the complete lab build process, from prerequisit
 
 | File | What it shows |
 |---|---|
-| `67-ansible-promote-dc01-first-attempt-unreachable.webp` | WSL2: `01-promote-dc01.yml` — dc01 UNREACHABLE on first run ⚠️ |
+| `67-ansible-promote-dc01-first-attempt-unreachable.webp` | WSL2: local `01-promote-dc01.yml` playbook attempt — dc01 UNREACHABLE on first run ⚠️ |
 | `68-ansible-promote-dc01-read-timeout.webp` | WSL2: promote-dc01.yml read timed out (WinRM timeout during AD DS install) ⚠️ |
 | `69-ansible-promote-dc01-adds-feature-installed.webp` | WSL2: checking `Get-WindowsFeature AD-Domain-Services` → Installed ✅ |
 | `70-ansible-promote-unsupported-module-params.webp` | WSL2: Promote fails — "Unsupported parameters for microsoft.ad.domain module" ⚠️ |
-| `71-ansible-promote-playbook-yaml-view.webp` | WSL2: Viewing promote-dc01.yml YAML content, re-running playbook |
+| `71-ansible-promote-playbook-yaml-view.webp` | WSL2: viewing the local promote-dc01.yml YAML content used during the build, then re-running it |
 | `72-ansible-promote-changed-dc01-reboot-timeout.webp` | WSL2: `changed: [dc01]` (promotion succeeded), reboot timed out (684s elapsed) ⚠️ |
 | `73-ansible-promote-success-reboot-timeout-684s.webp` | WSL2: DC promotion changed, reboot waited 684s then timed out (expected) ✅ |
 | `74-wsl2-repadmin-replsummary-get-addomaincontroller.webp` | WSL2: `repadmin /replsummary` replication errors, `Get-ADDomainController` shows two DCs ⚠️ |
@@ -134,8 +141,10 @@ Ordered screenshots documenting the complete lab build process, from prerequisit
 | `78-wazuh-rule-4720-rogue-account-alert.png` | Wazuh Security Events — EventID 4720 (account created) alert firing ✅ |
 | `79-wazuh-mitre-eventid-4769-no-results.webp` | Wazuh MITRE ATT&CK — EventID 4769 filter, no results (time range too narrow) ⚠️ |
 | `80-wazuh-mitre-eventid-4769-2-hits.webp` | Wazuh MITRE ATT&CK — EventID 4769, 2 hits from DC01 ✅ |
-| `81-wazuh-mitre-eventid-4625-6-logon-failures.webp` | Wazuh MITRE ATT&CK — EventID 4625, 6 logon failure events from DC01 (T1078, T1531) ✅ |
-| `82-wazuh-mitre-eventid-4672-no-results.webp` | Wazuh MITRE ATT&CK — EventID 4672, no results (time range issue) ⚠️ |
+| `81-wazuh-mitre-eventid-4625-6-logon-failures.webp` | Wazuh MITRE ATT&CK — EventID 4625, 6 logon failure events from DC01 during password spray validation (T1110.003) ✅ |
+| `82-wazuh-mitre-eventid-4672-no-results.webp` | Wazuh MITRE ATT&CK — EventID 4672, no results before the required audit policy was enabled ⚠️ |
+| `83-wazuh-mitre-eventid-4672-no-results-2.webp` | Wazuh MITRE ATT&CK — second 4672 validation attempt still returning no results while audit policy coverage was incomplete ⚠️ |
+| `84-wazuh-mitre-eventid-4672-no-results-dashboard.webp` | Wazuh dashboard view confirming 4672 remained absent until audit policy was corrected ⚠️ |
 | `85-wazuh-mitre-47-hits-t1078-logon-events.webp` | Wazuh MITRE ATT&CK — 47 hits, T1078 Windows logon success events from DC01 ✅ |
 | `86-wazuh-mitre-dc01-logon-type3-events.webp` | Wazuh MITRE ATT&CK — DC01 LogonType:3 events, 47 hits ✅ |
 
@@ -147,3 +156,5 @@ Ordered screenshots documenting the complete lab build process, from prerequisit
 - ✅ = working state confirmed
 - Screenshots are `.webp` format or `.png`
 - Timestamps in Wazuh screenshots: **Mar 8, 2026** (lab build date)
+
+

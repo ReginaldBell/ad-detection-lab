@@ -87,3 +87,4 @@ Restart after change:
 ```bash
 sudo systemctl restart wazuh-manager
 ```
+

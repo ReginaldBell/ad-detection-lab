@@ -14,8 +14,8 @@ See [architecture/network-topology.md](../architecture/network-topology.md) for 
 
 | VM | Hostname | IP | OS | RAM | Role |
 |---|---|---|---|---|---|
-| dc01 | DC01 | 192.168.56.10 | Windows Server 2016 | 4 GB | Primary DC, DNS, FSMO holder |
-| dc02 | DC02 | 192.168.56.102 | Windows Server 2016 | 2 GB | Replica DC |
+| dc01 | DC01 | 192.168.56.10 | Windows Server 2022 | 4 GB | Primary DC, DNS, FSMO holder |
+| dc02 | DC02 | 192.168.56.102 | Windows Server 2022 | 2 GB | Replica DC |
 | wkstn01 | WKSTN01 | 192.168.56.20 | Windows 10 Pro 22H2 | 4 GB | Domain workstation |
 | siem01 | siem01 | 192.168.56.103 | Ubuntu 24.04 LTS | 4 GB | Wazuh 4.7.5 SIEM |
 
@@ -64,7 +64,7 @@ corp.techcorp.internal
 | Tool | Version | Purpose |
 |---|---|---|
 | VirtualBox | 7.x | Hypervisor |
-| Ansible | 2.15+ | Windows automation via WinRM |
+| Ansible | 2.20.3 | Windows automation via WinRM |
 | WSL2 | Ubuntu | Ansible control node |
 | Wazuh | 4.7.5 | SIEM / XDR |
 | PowerShell | 5.1 | Scripting and attack simulation |

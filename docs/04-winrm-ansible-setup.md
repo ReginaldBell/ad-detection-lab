@@ -1,8 +1,10 @@
 # Section 4: WinRM & Ansible Setup
 
-Configure WinRM on all Windows VMs to enable Ansible automation from WSL2.
+Configure WinRM on all Windows VMs to enable optional Ansible remote execution from WSL2.
 
 > **WARNING:** These WinRM settings (Basic auth, unencrypted) are intentionally permissive for a **lab-only** isolated network. Never apply these settings on production systems.
+
+> **Recommended path:** Run the tracked WinRM script locally on each Windows VM first. After WinRM is working, use Ansible from WSL2 to verify connectivity and optionally copy/run the tracked PowerShell scripts remotely.
 
 ## Configure WinRM on Each Windows VM
 
@@ -44,27 +46,47 @@ Expected output includes a listener on port 5985.
 
 **File:** [ansible/inventory.ini.template](../ansible/inventory.ini.template)
 
-Copy and fill in your credentials:
+Copy the template to `ansible/inventory.ini` and fill in the credentials that match your stage of the build:
+
+- `dc01` and `dc02`: local `Administrator` before domain tasks, or domain admin after promotion
+- `wkstn01`: the local admin account you created during Windows setup before domain join, or a domain admin after join
+
+Example:
 
 ```ini
 [domain_controllers]
-dc01 ansible_host=192.168.56.10
-dc02 ansible_host=192.168.56.102
+dc01 ansible_host=192.168.56.10 ansible_user=Administrator
+dc02 ansible_host=192.168.56.102 ansible_user=Administrator
 
 [workstations]
-wkstn01 ansible_host=192.168.56.20
+wkstn01 ansible_host=192.168.56.20 ansible_user=<YOUR_WKSTN_ADMIN_USER>
 
 [windows:children]
 domain_controllers
 workstations
 
 [windows:vars]
-ansible_user=Administrator
-ansible_password=<YOUR_ADMIN_PASSWORD>
+ansible_password=<YOUR_PASSWORD>
 ansible_connection=winrm
 ansible_winrm_transport=basic
 ansible_winrm_server_cert_validation=ignore
 ansible_port=5985
+```
+
+## Recommended Ansible Usage In This Repo
+
+This repo does not rely on tracked Ansible playbooks. The practical pattern is:
+
+1. Configure networking manually on each VM
+2. Run `04-winrm-setup.ps1` locally on each Windows VM
+3. Verify connectivity with `win_ping`
+4. Use `win_copy` and `win_shell` to run the tracked PowerShell scripts remotely when convenient
+
+Example:
+
+```bash
+ansible dc01 -i ansible/inventory.ini -m win_copy -a "src=scripts/powershell/05-promote-dc01.ps1 dest=C:\\Temp\\05-promote-dc01.ps1"
+ansible dc01 -i ansible/inventory.ini -m win_shell -a "powershell -ExecutionPolicy Bypass -File C:\\Temp\\05-promote-dc01.ps1"
 ```
 
 ## Test Ansible Connectivity

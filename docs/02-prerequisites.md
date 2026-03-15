@@ -18,15 +18,17 @@
 
 ### VM Images / ISOs
 
-- Windows Server 2016 ISO (Evaluation: 180-day free from Microsoft Evaluation Center)
+- Windows Server 2022 ISO (Evaluation: 180-day free from Microsoft Evaluation Center)
 - Windows 10 Pro ISO (22H2 or later)
 - Ubuntu Server 24.04 LTS ISO — [ubuntu.com/download/server](https://ubuntu.com/download/server)
 
 ### Automation (optional but recommended)
 
 - **WSL2** with Ubuntu — for running Ansible from Windows
-- **Ansible 2.15+** — `pip install ansible pywinrm`
+- **Ansible 2.20.3** — `pip install ansible pywinrm`
 - **Python 3.10+**
+
+> **Workflow note:** This lab was built manually in VirtualBox with PowerShell scripts on the guest VMs. Ansible is optional and is used here as a remote execution layer from WSL2, not as the primary provisioning system.
 
 ### Tools on Host
 
@@ -69,7 +71,7 @@ ansible --version
 
 - [ ] VirtualBox installed with Extension Pack
 - [ ] Host-only network `192.168.56.0/24` created, DHCP disabled
-- [ ] Windows Server 2016 ISO available
+- [ ] Windows Server 2022 ISO available
 - [ ] Windows 10 ISO available
 - [ ] Ubuntu 24.04 ISO available
 - [ ] At least 14 GB RAM available for simultaneous VM operation

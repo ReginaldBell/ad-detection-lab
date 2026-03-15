@@ -4,8 +4,8 @@
 # Fill in the placeholders, then run:
 #   ansible windows -i ansible/inventory.ini -m win_ping
 #
-# NOTE: inventory.ini is .gitignored — never commit credentials.
-# Add "ansible/inventory.ini" to .gitignore if not already present.
+# NOTE: Keep credentials out of tracked files.
+# The tracked inventory examples in this repo are sanitized.
 
 [domain_controllers]
 dc01    ansible_host=192.168.56.10

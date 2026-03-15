@@ -37,8 +37,8 @@
 
 | Hostname | IP Address | OS | RAM | vCPU | Role |
 |---|---|---|---|---|---|
-| dc01 | 192.168.56.10 | Windows Server 2016 | 4 GB | 2 | Primary DC, DNS, FSMO |
-| dc02 | 192.168.56.102 | Windows Server 2016 | 2 GB | 2 | Replica DC |
+| dc01 | 192.168.56.10 | Windows Server 2022 | 4 GB | 2 | Primary DC, DNS, FSMO |
+| dc02 | 192.168.56.102 | Windows Server 2022 | 2 GB | 2 | Replica DC |
 | wkstn01 | 192.168.56.20 | Windows 10 Pro 22H2 | 4 GB | 2 | Domain-joined workstation |
 | siem01 | 192.168.56.103 | Ubuntu 24.04 LTS | 4 GB | 2 | Wazuh SIEM server |
 

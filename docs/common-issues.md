@@ -180,6 +180,8 @@ Also confirm the inventory password is correct — use `sed` to fix placeholder 
 
 **Root Cause:** WSL2 and the VirtualBox host-only adapter were on different subnets. wkstn01 only had a NAT adapter and no host-only adapter configured.
 
+**Note:** The intermediate workstation IPs `192.168.56.104` and `192.168.56.105` shown in this section were temporary troubleshooting assignments. The intended steady-state IP for wkstn01 in the finished lab is `192.168.56.20`.
+
 **Fix:**
 1. Add a second adapter (Host-Only) to wkstn01 in VirtualBox
 2. Assign the static IP inside Windows:
@@ -259,7 +261,12 @@ bash wazuh-install.sh -a -i
 
 **Screenshot:** `82-wazuh-mitre-eventid-4672-no-results.webp`
 
-**Fix:** Check the time range — Wazuh defaults to "Last 15 minutes". Widen to "Last 24 hours" or "Last 7 days". Also verify the agent is actively sending Security log events by checking `archives.json`:
+**Fix:** In this lab, the issue was missing audit policy coverage for sensitive privilege use, not just dashboard filtering. On Windows Server 2022, enable the required audit subcategory first, then widen the dashboard time range if needed and verify the event stream in `archives.json`:
+```powershell
+auditpol /get /category:*
+auditpol /set /subcategory:"Sensitive Privilege Use" /success:enable /failure:enable
+```
+
 ```bash
 sudo tail -f /var/ossec/logs/archives/archives.json | grep "4672"
 ```
@@ -275,3 +282,5 @@ sudo tail -f /var/ossec/logs/archives/archives.json | grep "4672"
 **Fix:** Widen the time range. After adjusting, 2 hits appeared from DC01.
 
 **Screenshot (resolved):** `80-wazuh-mitre-eventid-4769-2-hits.webp`
+
+

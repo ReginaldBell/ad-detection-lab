@@ -2,6 +2,21 @@
 
 All key commands used throughout this lab, organized by category.
 
+## Recommended Trail
+
+Use this repo in the following order if you want the shortest path to a successful reproduction:
+
+1. Host setup in [docs/02-prerequisites.md](../docs/02-prerequisites.md)
+2. VM networking in [docs/03-network-configuration.md](../docs/03-network-configuration.md)
+3. WinRM and optional Ansible connectivity in [docs/04-winrm-ansible-setup.md](../docs/04-winrm-ansible-setup.md)
+4. AD buildout in [docs/05-active-directory-setup.md](../docs/05-active-directory-setup.md)
+5. Wazuh install in [docs/06-wazuh-siem-setup.md](../docs/06-wazuh-siem-setup.md)
+6. Agent enrollment in [docs/07-wazuh-agent-configuration.md](../docs/07-wazuh-agent-configuration.md)
+7. Rule deployment in [docs/08-detection-rules.md](../docs/08-detection-rules.md)
+8. Attack validation in [detections/attack-simulation-guide.md](../detections/attack-simulation-guide.md)
+
+> The actual build path is manual VirtualBox + guest PowerShell, with Ansible used as an optional remote execution layer from WSL2.
+
 ---
 
 ## VirtualBox (Host PowerShell)
@@ -98,12 +113,16 @@ ansible domain_controllers -i ansible/inventory.ini -m win_command -a "ipconfig"
 # Run a PowerShell command
 ansible windows -i ansible/inventory.ini -m win_shell -a "Get-ADUser -Filter * | Measure-Object"
 
-# Run a playbook
-ansible-playbook -i ansible/inventory.ini ansible/playbooks/01-promote-dc01.yml
+# Copy a tracked PowerShell script, then run it remotely
+ansible dc01 -i ansible/inventory.ini -m win_copy -a "src=scripts/powershell/05-promote-dc01.ps1 dest=C:\\Temp\\05-promote-dc01.ps1"
+ansible dc01 -i ansible/inventory.ini -m win_shell -a "powershell -ExecutionPolicy Bypass -File C:\\Temp\\05-promote-dc01.ps1"
 
 # Upgrade the microsoft.ad collection
 ansible-galaxy collection install microsoft.ad --upgrade
 ```
+
+Inventory note:
+Use local admin credentials on hosts that are not domain-joined yet. After the domain exists and the workstation is joined, you can switch to domain credentials if preferred.
 
 ---
 

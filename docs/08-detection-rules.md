@@ -6,10 +6,16 @@ Custom Wazuh detection rules mapped to MITRE ATT&CK techniques. Rules are stored
 
 **Config file:** [scripts/config/local_rules.xml](../scripts/config/local_rules.xml)
 
-Copy to siem01:
+From the repo root, copy the tracked rule file to `siem01`:
 
 ```bash
-sudo cp local_rules.xml /var/ossec/etc/rules/local_rules.xml
+scp scripts/config/local_rules.xml labadmin@192.168.56.103:/tmp/local_rules.xml
+```
+
+Then on `siem01`:
+
+```bash
+sudo cp /tmp/local_rules.xml /var/ossec/etc/rules/local_rules.xml
 sudo chown root:wazuh /var/ossec/etc/rules/local_rules.xml
 sudo chmod 660 /var/ossec/etc/rules/local_rules.xml
 sudo systemctl restart wazuh-manager
@@ -58,13 +64,13 @@ Triggers on multiple EventID 4625 failures from a single source within 60 second
 
 ### Rule 100003 — Privilege Escalation (T1078)
 
-Triggers on EventID 4672 (special privileges) combined with EventID 4728 (group membership change).
+Triggers on EventID 4728 (member added to a global security group) where the target group is `Domain Admins`.
 
 ```xml
 <rule id="100003" level="12">
   <if_group>windows</if_group>
   <field name="win.system.eventID">^4728$</field>
-  <field name="win.eventdata.targetUserName" type="pcre2">Domain Admins</field>
+  <field name="win.eventdata.targetUserName" type="pcre2">(?i)Domain Admins</field>
   <description>User added to Domain Admins group (T1078)</description>
   <mitre>
     <id>T1078</id>
@@ -81,7 +87,7 @@ Triggers on EventID 4648 (explicit credential logon) targeting a remote host.
 <rule id="100004" level="10">
   <if_group>windows</if_group>
   <field name="win.system.eventID">^4648$</field>
-  <field name="win.eventdata.targetServerName" negate="yes">localhost</field>
+  <field name="win.eventdata.targetServerName" negate="yes">(?i)localhost|127\.0\.0\.1</field>
   <description>Lateral movement: explicit credential logon to remote host (T1021.002)</description>
   <mitre>
     <id>T1021.002</id>
@@ -133,3 +139,4 @@ rule.id: 100002
 # All critical (level 12) alerts
 rule.level: 12
 ```
+

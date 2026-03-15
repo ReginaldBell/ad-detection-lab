@@ -40,9 +40,12 @@ INFO: You can access the web interface https://192.168.56.103
 
 **Script:** [scripts/powershell/11-install-wazuh-agent.ps1](../scripts/powershell/11-install-wazuh-agent.ps1)
 
-Run on **dc01**, **dc02**, and **wkstn01**:
+Run on **dc01**, **dc02**, and **wkstn01** after the Wazuh dashboard is reachable:
 
 ```powershell
+# Ensure temp directory exists
+if (-not (Test-Path 'C:\Temp')) { New-Item -ItemType Directory -Path 'C:\Temp' | Out-Null }
+
 # Download agent installer
 Invoke-WebRequest -Uri 'https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.5-1.msi' `
     -OutFile 'C:\Temp\wazuh-agent.msi'
@@ -55,6 +58,12 @@ msiexec.exe /i 'C:\Temp\wazuh-agent.msi' /q `
 
 # Start the agent service
 NET START WazuhSvc
+```
+
+If you prefer, run the tracked script directly instead:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\11-install-wazuh-agent.ps1
 ```
 
 ## 6.4 — Verify Agent Enrollment

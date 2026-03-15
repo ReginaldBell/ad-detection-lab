@@ -2,6 +2,22 @@
 
 Complete AD DS deployment: forest creation, replica DC, OU structure, bulk users, service accounts, and privileged admin accounts.
 
+## Recommended Execution Order
+
+Follow this sequence to reproduce the tracked lab build cleanly:
+
+1. Configure networking on all VMs from [docs/03-network-configuration.md](../docs/03-network-configuration.md)
+2. Configure WinRM from [docs/04-winrm-ansible-setup.md](../docs/04-winrm-ansible-setup.md) if you want remote execution from WSL2
+3. Promote `dc01`
+4. Promote `dc02`
+5. Join `wkstn01` to the domain
+6. Create the OU structure
+7. Create the 1,800 bulk users
+8. Create the service accounts and SPNs
+9. Create the Tier0 admin accounts
+
+You can run the tracked PowerShell scripts directly inside each VM or copy/run them remotely with Ansible after WinRM is working.
+
 ## 5.1 — Promote dc01 (Primary Domain Controller)
 
 **Script:** [scripts/powershell/05-promote-dc01.ps1](../scripts/powershell/05-promote-dc01.ps1)
@@ -23,6 +39,13 @@ Install-ADDSForest `
 
 VM reboots automatically after promotion.
 
+**Verify before continuing:**
+
+```powershell
+Get-ADDomain
+Get-ADDomainController -Filter *
+```
+
 ## 5.2 — Promote dc02 (Replica Domain Controller)
 
 **Script:** [scripts/powershell/06-promote-dc02.ps1](../scripts/powershell/06-promote-dc02.ps1)
@@ -38,6 +61,13 @@ Install-ADDSDomainController `
     -Force:$true
 ```
 
+**Verify before continuing:**
+
+```powershell
+Get-ADDomainController -Filter *
+repadmin /replsummary
+```
+
 ## 5.3 — Join wkstn01 to Domain
 
 Run on wkstn01 after dc01 is promoted:
@@ -46,6 +76,13 @@ Run on wkstn01 after dc01 is promoted:
 Add-Computer -DomainName 'corp.techcorp.internal' `
     -Credential (Get-Credential 'TECHCORP\Administrator') `
     -Restart
+```
+
+**Verify after reboot:**
+
+```powershell
+whoami
+nltest /dsgetdc:corp.techcorp.internal
 ```
 
 ## 5.4 — Create OU Structure
@@ -69,6 +106,12 @@ $Tier2DN = "OU=Tier2,$BaseDN"
 foreach ($Dept in $Departments) {
     New-ADOrganizationalUnit -Name $Dept -Path $Tier2DN -ProtectedFromAccidentalDeletion $true
 }
+```
+
+**Verify:**
+
+```powershell
+Get-ADOrganizationalUnit -Filter * | Select-Object Name, DistinguishedName
 ```
 
 ## 5.5 — Bulk User Creation (1,800 Users)
@@ -97,6 +140,12 @@ foreach ($Dept in $Departments) {
 }
 ```
 
+**Verify:**
+
+```powershell
+(Get-ADUser -Filter *).Count
+```
+
 ## 5.6 — Service Accounts & SPNs
 
 **Script:** [scripts/powershell/09-service-accounts-spns.ps1](../scripts/powershell/09-service-accounts-spns.ps1)
@@ -123,6 +172,12 @@ foreach ($SA in $ServiceAccounts) {
 }
 ```
 
+**Verify:**
+
+```powershell
+setspn -T corp.techcorp.internal -Q */*
+```
+
 ## 5.7 — Tier0 Privileged Admin Accounts
 
 **Script:** [scripts/powershell/10-tier0-admins.ps1](../scripts/powershell/10-tier0-admins.ps1)
@@ -140,6 +195,12 @@ foreach ($Admin in $Tier0Admins) {
     # Add to Domain Admins
     Add-ADGroupMember -Identity 'Domain Admins' -Members $Admin
 }
+```
+
+**Verify:**
+
+```powershell
+Get-ADGroupMember -Identity 'Domain Admins' | Select-Object Name
 ```
 
 ## Verification

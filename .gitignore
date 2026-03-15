@@ -1,18 +1,14 @@
-# Terraform
-.terraform/
-*.tfstate
-*.tfstate.*
-crash.log
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-terraform.tfvars
-*.auto.tfvars
-
 # Ansible/local
 *.retry
 .env
 .env.*
 secrets.yml
 vault.yml
+
+# Internal audit and working documents
+docs/project-accuracy-audit-*.md
+
+# Credentials — keep local overrides out of the repo
+ansible/inventory.local.ini
+group_vars/local_vault.yml
+

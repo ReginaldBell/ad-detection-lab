@@ -16,7 +16,7 @@
         <mxCell id="dc01" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#D32F2F;strokeWidth=2;fillColor=#FFEBEE;align=center;verticalAlign=middle;fontSize=9" value="dc01 - Primary DC&#xa;192.168.56.10&#xa;Windows Server 2022&#xa;AD Forest&#xa;DNS Server&#xa;900 Users" vertex="1">
           <mxGeometry height="110" width="130" x="75" y="120" as="geometry" />
         </mxCell>
-        <mxCell id="dc02" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#D32F2F;strokeWidth=2;fillColor=#FFEBEE;align=center;verticalAlign=middle;fontSize=9" value="dc02 - Secondary DC&#xa;192.168.56.11&#xa;Windows Server 2022&#xa;AD Replica&#xa;DNS Server&#xa;900 Users" vertex="1">
+        <mxCell id="dc02" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#D32F2F;strokeWidth=2;fillColor=#FFEBEE;align=center;verticalAlign=middle;fontSize=9" value="dc02 - Secondary DC&#xa;192.168.56.102&#xa;Windows Server 2022&#xa;AD Replica&#xa;DNS Server&#xa;900 Users" vertex="1">
           <mxGeometry height="110" width="130" x="225" y="120" as="geometry" />
         </mxCell>
         <mxCell id="replication" edge="1" parent="1" source="dc01" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF8F00;strokeWidth=3;fontSize=9" target="dc02" value="AD Replication">
@@ -25,7 +25,7 @@
         <mxCell id="ws-container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#388E3C;strokeWidth=2;fillColor=#E8F5E9;align=center;verticalAlign=top;fontSize=11;fontStyle=1;padding=10" value="Domain Workstation - Attack Surface" vertex="1">
           <mxGeometry height="300" width="310" x="395" y="90" as="geometry" />
         </mxCell>
-        <mxCell id="wkstn01" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#388E3C;strokeWidth=2;fillColor=#E8F5E9;align=center;verticalAlign=middle;fontSize=9" value="wkstn01&#xa;192.168.56.104&#xa;Windows 10 Pro&#xa;Domain Member&#xa;Sysmon Logging" vertex="1">
+        <mxCell id="wkstn01" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#388E3C;strokeWidth=2;fillColor=#E8F5E9;align=center;verticalAlign=middle;fontSize=9" value="wkstn01&#xa;192.168.56.20&#xa;Windows 10 Pro&#xa;Domain Member&#xa;Sysmon Logging" vertex="1">
           <mxGeometry height="110" width="145" x="410" y="120" as="geometry" />
         </mxCell>
         <mxCell id="domain-join" edge="1" parent="1" source="dc01" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#388E3C;strokeWidth=2;fontSize=9" target="wkstn01" value="Domain Join">
@@ -34,7 +34,7 @@
         <mxCell id="siem-container" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#7B1FA2;strokeWidth=2;fillColor=#F3E5F5;align=center;verticalAlign=top;fontSize=11;fontStyle=1;padding=10" value="SIEM Server (Wazuh 4.7.5)" vertex="1">
           <mxGeometry height="300" width="320" x="740" y="90" as="geometry" />
         </mxCell>
-        <mxCell id="siem01" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#7B1FA2;strokeWidth=2;fillColor=#F3E5F5;align=center;verticalAlign=middle;fontSize=9" value="siem01&#xa;192.168.56.50&#xa;Ubuntu 24.04 LTS&#xa;Wazuh Manager&#xa;Web Dashboard" vertex="1">
+        <mxCell id="siem01" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#7B1FA2;strokeWidth=2;fillColor=#F3E5F5;align=center;verticalAlign=middle;fontSize=9" value="siem01&#xa;192.168.56.103&#xa;Ubuntu 24.04 LTS&#xa;Wazuh Manager&#xa;Web Dashboard" vertex="1">
           <mxGeometry height="110" width="145" x="755" y="120" as="geometry" />
         </mxCell>
         <mxCell id="dc-siem" edge="1" parent="1" source="dc01" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#7B1FA2;strokeWidth=2;fontSize=8" target="siem01" value="Events (1514/514)">
@@ -46,7 +46,7 @@
         <mxCell id="infra-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontStyle=1;fontColor=#333" value="Infrastructure and Automation" vertex="1">
           <mxGeometry height="25" width="1080" x="60" y="410" as="geometry" />
         </mxCell>
-        <mxCell id="terraform" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#1976D2;strokeWidth=2;fillColor=#BBDEFB;align=center;verticalAlign=middle;fontSize=9" value="Terraform&#xa;VM Provisioning" vertex="1">
+        <mxCell id="terraform" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#1976D2;strokeWidth=2;fillColor=#BBDEFB;align=center;verticalAlign=middle;fontSize=9" value="Manual Build&#xa;VirtualBox + ISOs" vertex="1">
           <mxGeometry height="90" width="140" x="80" y="450" as="geometry" />
         </mxCell>
         <mxCell id="ansible" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#1976D2;strokeWidth=2;fillColor=#BBDEFB;align=center;verticalAlign=middle;fontSize=9" value="Ansible&#xa;Configuration" vertex="1">
@@ -73,7 +73,7 @@
         <mxCell id="rules" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#C62828;strokeWidth=2;fillColor=#FFCDD2;align=center;verticalAlign=middle;fontSize=9" value="Wazuh Rules&#xa;Correlation" vertex="1">
           <mxGeometry height="100" width="140" x="240" y="600" as="geometry" />
         </mxCell>
-        <mxCell id="attacks" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#C62828;strokeWidth=2;fillColor=#FFCDD2;align=center;verticalAlign=middle;fontSize=8" value="Attack Simulation&#xa;T1110.003&#xa;T1078.003&#xa;T1566.002" vertex="1">
+        <mxCell id="attacks" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#C62828;strokeWidth=2;fillColor=#FFCDD2;align=center;verticalAlign=middle;fontSize=8" value="Attack Simulation&#xa;T1558.003&#xa;T1110.003&#xa;T1078&#xa;T1021.002&#xa;T1136.001" vertex="1">
           <mxGeometry height="100" width="140" x="400" y="600" as="geometry" />
         </mxCell>
         <mxCell id="mitre" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#C62828;strokeWidth=2;fillColor=#FFCDD2;align=center;verticalAlign=middle;fontSize=9" value="MITRE ATT&amp;CK&#xa;5 Techniques" vertex="1">
@@ -92,3 +92,4 @@
     </mxGraphModel>
   </diagram>
 </mxfile>
+
