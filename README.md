@@ -8,7 +8,28 @@ A hands-on homelab simulating a small enterprise Active Directory environment fo
 
 ## Current State
 
-**Phase 14 complete.** All 7 VMs operational. 7 MITRE ATT&CK techniques detected end-to-end, each automatically routed into osTicket as a structured incident ticket. Phishing arc (GoPhish + Postfix) online and agent-enrolled — detection rules planned for Phase 15.
+**Phase 14 complete — all 7 VMs powered off at known-good snapshot `recovery-aligned-2026-04-11`.**
+
+| VM | Role | IP | Snapshot | Agent |
+|---|---|---|---|---|
+| dc01 | Primary DC, DNS, DHCP | 192.168.56.10 | recovery-aligned-2026-04-11 | Active |
+| dc02 | Replica DC | 192.168.56.102 | recovery-aligned-2026-04-11 | Active |
+| wkstn01 | Domain workstation | 192.168.56.20 | recovery-aligned-2026-04-11 | Active |
+| siem01 | Wazuh SIEM | 192.168.56.50 | recovery-aligned-2026-04-11 | Active/Local |
+| ticket01 | osTicket ITSM | 192.168.56.105 | recovery-aligned-2026-04-11 | Active |
+| gophish01 | GoPhish phishing | 192.168.56.60 | recovery-aligned-2026-04-11 | Active |
+| mail01 | Postfix/Dovecot | 192.168.56.70 | recovery-aligned-2026-04-11 | Active |
+
+**SOC pipeline:** Live — 7 MITRE ATT&CK techniques detected end-to-end, each automatically routed into osTicket as a structured incident ticket.
+
+**Phishing arc:** GoPhish + Postfix online and Wazuh-enrolled. Detection rules not yet built (Phase 15).
+
+**Known backlog:**
+- AD replication broken since 2026-03-24 — Kerberos SPN mismatch (non-blocking, SIEM unaffected)
+- ticket01 hostname still "osboxes" — cosmetic only
+- Phase 15 phishing detection rules not yet built
+
+---
 
 - Build guides: [docs/](docs/)
 - Operational docs: [docs/operations/](docs/operations/README.md)
