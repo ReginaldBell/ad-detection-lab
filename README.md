@@ -8,7 +8,28 @@ A hands-on homelab simulating a small enterprise Active Directory environment fo
 
 ## Current State
 
-**Phase 14 complete.** All 7 VMs operational. 7 MITRE ATT&CK techniques detected end-to-end, each automatically routed into osTicket as a structured incident ticket. Phishing arc (GoPhish + Postfix) online and agent-enrolled — detection rules planned for Phase 15.
+**Phase 14 complete — all 7 VMs powered off at known-good snapshot `recovery-aligned-2026-04-11`.**
+
+| VM | Role | IP | Snapshot | Agent |
+|---|---|---|---|---|
+| dc01 | Primary DC, DNS, DHCP | 192.168.56.10 | recovery-aligned-2026-04-11 | Active |
+| dc02 | Replica DC | 192.168.56.102 | recovery-aligned-2026-04-11 | Active |
+| wkstn01 | Domain workstation | 192.168.56.20 | recovery-aligned-2026-04-11 | Active |
+| siem01 | Wazuh SIEM | 192.168.56.50 | recovery-aligned-2026-04-11 | Active/Local |
+| ticket01 | osTicket ITSM | 192.168.56.105 | recovery-aligned-2026-04-11 | Active |
+| gophish01 | GoPhish phishing | 192.168.56.60 | recovery-aligned-2026-04-11 | Active |
+| mail01 | Postfix/Dovecot | 192.168.56.70 | recovery-aligned-2026-04-11 | Active |
+
+**SOC pipeline:** Live — 7 MITRE ATT&CK techniques detected end-to-end, each automatically routed into osTicket as a structured incident ticket.
+
+**Phishing arc:** GoPhish + Postfix online and Wazuh-enrolled. Detection rules not yet built (Phase 15).
+
+**Known backlog:**
+- AD replication broken since 2026-03-24 — Kerberos SPN mismatch (non-blocking, SIEM unaffected)
+- ticket01 hostname still "osboxes" — cosmetic only
+- Phase 15 phishing detection rules not yet built
+
+---
 
 - Build guides: [docs/](docs/)
 - Operational docs: [docs/operations/](docs/operations/README.md)
@@ -45,10 +66,13 @@ Key references:
 
 ### Domain Structure
 
-- **1,800 domain users** spread across 9 OUs: IT, HR, Finance, Legal, Engineering, Marketing, Sales, Operations, Executive
-- **Tier model:** Tier0 (5 privileged admins), Tier1 (5 service accounts with SPNs), Tier2 (workstations and bulk users)
-- **Service accounts with SPNs:** `svc_sql`, `svc_backup`, `svc_wazuh`, `svc_monitoring`, `svc_deploy` — intentionally Kerberoastable
-- **Dual DC:** dc01 is forest root and FSMO holder; dc02 is replica DC for replication testing
+All AD structure was provisioned via a sequenced set of PowerShell scripts — no manual clicking in AD Users & Computers.
+
+- **1,800 domain users** scripted across 9 department OUs (200 per dept): IT, HR, Finance, Legal, Engineering, Marketing, Sales, Operations, Executive
+- **Tiered admin model:** Tier0 (5 privileged Domain Admin accounts), Tier1 (5 service accounts with SPNs), Tier2 (bulk users and workstations)
+- **Kerberoastable service accounts:** `svc_sql`, `svc_backup`, `svc_wazuh`, `svc_monitoring`, `svc_deploy` — each with a registered SPN, intentionally vulnerable to T1558.003
+- **Dual DC:** dc01 promoted as forest root and FSMO holder; dc02 promoted as replica DC via separate script
+- **Provisioning sequence:** `07-create-ou-structure.ps1` → `08-bulk-user-creation.ps1` → `09-service-accounts-spns.ps1` → `10-tier0-admins.ps1`
 
 ---
 
@@ -61,13 +85,63 @@ Key references:
 | Windows 10 Pro | 22H2 | Domain workstation — attack surface |
 | Ubuntu Server | 24.04 LTS | Wazuh SIEM host, osTicket host, phishing hosts |
 | Wazuh | 4.7.5 | SIEM, XDR, detection rules, MITRE dashboard |
+| Sysmon | — | Enriched endpoint telemetry on WKSTN01 — process creation, network connections, PowerShell script block events |
 | osTicket | v1.18.1 | ITSM — auto-receives incident tickets from Wazuh |
 | GoPhish | — | Phishing campaign simulation |
 | Postfix / Dovecot | — | Internal SMTP/IMAP relay for phishing arc |
-| Ansible | 2.20.3 | Automation via WinRM (Windows) and SSH (Linux) from WSL2 |
-| PowerShell | 5.1 | AD provisioning, attack simulation scripts |
+| Ansible | 2.20.3 | Linux/Windows automation via SSH + WinRM from WSL2 |
+| Terraform | 0.2.2-alpha | VM provisioning IaC (terra-farm/virtualbox provider) |
+| PowerShell | 5.1 | 11-script AD provisioning sequence + 5 attack simulation scripts |
 | WSL2 (Ubuntu) | — | Ansible control node on Windows host |
-| Sysmon | — | Process, network, and file event logging on WKSTN01 |
+
+---
+
+## Infrastructure Provisioning
+
+The full lab stack — VMs, AD structure, and supporting services — is provisioned via a sequenced set of scripts. Nothing was configured manually through GUIs.
+
+### VM Provisioning — Terraform + VBoxManage
+
+`terraform/main.tf` defines VMs using the `terra-farm/virtualbox` provider (IaC reference). VMs are imported via `VBoxManage import` on Windows due to provider path limitations with OVA files on Windows hosts.
+
+### Active Directory — PowerShell (11 scripts, run in order)
+
+| Script | What it does |
+|---|---|
+| `01-dc01-network-config.ps1` | Static IP, DNS, adapter config on dc01 |
+| `02-dc02-network-config.ps1` | Static IP, DNS, adapter config on dc02 |
+| `03-wkstn01-network-config.ps1` | Static IP, domain DNS on wkstn01 |
+| `04-winrm-setup.ps1` | Enable WinRM + TrustedHosts for remote execution |
+| `05-promote-dc01.ps1` | Install AD DS, promote dc01 as forest root + FSMO holder |
+| `06-promote-dc02.ps1` | Promote dc02 as replica DC, configure replication |
+| `07-create-ou-structure.ps1` | Create Tier0/Tier1/Tier2 OUs + 9 department sub-OUs |
+| `08-bulk-user-creation.ps1` | Create 1,800 users (200 per department) across Tier2 OUs |
+| `09-service-accounts-spns.ps1` | Create 5 Tier1 service accounts, register SPNs (Kerberoastable) |
+| `10-tier0-admins.ps1` | Create 5 Tier0 admin accounts, add to Domain Admins |
+| `11-install-wazuh-agent.ps1` | Install Wazuh agent MSI on Windows VMs, set manager IP |
+
+### Supporting Services — Ansible (4 playbooks)
+
+| Playbook | What it does |
+|---|---|
+| `ticket01_lamp.yml` | Deploy Apache2, PHP 8.3, MySQL 8 on ticket01 |
+| `ticket01_osticket.yml` | Deploy osTicket v1.18.1, configure departments/SLAs/topics |
+| `siem01_osticket_integration.yml` | Deploy custom-osticket script + ossec.conf integration blocks |
+| `dc01_register_ticket01_dns.ps1` | Register ticket01 A record on dc01 DNS |
+
+Secrets managed via Ansible Vault (`group_vars/all/vault.yml`). WinRM transport for Windows, SSH key for Linux.
+
+### Attack Simulations — PowerShell (5 scripts)
+
+Each script generates real Windows event telemetry that triggers the corresponding Wazuh detection rule.
+
+| Script | Technique | What it does |
+|---|---|---|
+| `attack-t1558-kerberoasting.ps1` | T1558.003 | Requests RC4-encrypted Kerberos tickets for all 5 SPNs |
+| `attack-t1110-password-spray.ps1` | T1110.003 | Sprays failed logons across domain users to trigger lockout |
+| `attack-t1078-privilege-escalation.ps1` | T1078 | Adds user to Domain Admins (Event 4728) |
+| `attack-t1021-lateral-movement.ps1` | T1021.002 | Connects to admin share with explicit credentials (Event 4648) |
+| `attack-t1136-rogue-account.ps1` | T1136.001 | Creates unauthorized domain user account (Event 4720) |
 
 ---
 
@@ -90,17 +164,35 @@ Windows Event (dc01 / wkstn01)
 
 ## MITRE ATT&CK Coverage
 
-| Phase | Technique | ID | Windows Event | Wazuh Rule | osTicket Dept | SLA |
-|---|---|---|---|---|---|---|
-| 4 | Brute Force — Failed Logon | T1110.003 | 4625 on DC01 | 60122 | IT Support | P2-High |
-| 4 | Account Lockout | T1110.003 | 4740 on DC01 | 60115 | IT Support | P2-High |
-| 5 | New User Created | T1136.001 | 4720 on DC01 | 60109 | Systems | P3-Normal |
-| 8 | PowerShell Abuse | T1059.001 | 4104 on WKSTN01 | 91809 | Systems | P2-High |
-| 9 | SMB Lateral Movement | T1021.002 | net use admin share | 92037 / 100209 | Systems | P2-High |
-| 10 | Explicit Credential Use | T1078 | 4648 on WKSTN01 | 100210 | Systems | P2-High |
-| 11 | Scheduled Task Persistence | T1053.005 | 4698 on WKSTN01 | 100211 | Systems | P2-High |
+### Live Detection → Ticket Pipeline
 
-Custom rules (100209–100211) live in `/var/ossec/etc/rules/local_rules.xml` on siem01.
+Every rule below fires on a real Windows event, reaches the Wazuh manager, and automatically creates an osTicket incident ticket via the custom Python integration.
+
+| Technique | ID | Windows Event | Wazuh Rule | osTicket Dept | SLA |
+|---|---|---|---|---|---|
+| Brute Force — Failed Logon | T1110.003 | 4625 on DC01 | 60122 | IT Support | P2-High |
+| Account Lockout | T1110.003 | 4740 on DC01 | 60115 | IT Support | P2-High |
+| New User Created | T1136.001 | 4720 on DC01 | 60109 | Systems | P3-Normal |
+| PowerShell Abuse | T1059.001 | 4104 on WKSTN01 (Sysmon + script block logging) | 91809 | Systems | P2-High |
+| SMB Lateral Movement | T1021.002 | net use admin share | 92037 / 100209 | Systems | P2-High |
+| Explicit Credential Use | T1078 | 4648 on WKSTN01 | 100210 | Systems | P2-High |
+| Scheduled Task Persistence | T1053.005 | 4698 on WKSTN01 | 100211 | Systems | P2-High |
+
+Rules 100209–100211 are custom — written where no built-in Wazuh rule existed. Deployed to `/var/ossec/etc/rules/local_rules.xml` on siem01.
+
+### Simulation Rule Set (scripts/config/local_rules.xml)
+
+A separate rule set designed to pair with the attack simulation scripts. These fire on the same Windows events and demonstrate detection logic without requiring the live osTicket integration.
+
+| Rule | Technique | ID | Trigger |
+|---|---|---|---|
+| 100001 | Kerberoasting | T1558.003 | Event 4769 + RC4 encryption type (0x17) |
+| 100002 | Password Spray | T1110.003 | 10+ Event 4625 from same source IP within 60s (frequency rule) |
+| 100003 | Privilege Escalation | T1078 | Event 4728 — member added to Domain Admins |
+| 100004 | Lateral Movement | T1021.002 | Event 4648 — explicit credential logon to remote host |
+| 100005 | Rogue Account | T1136.001 | Event 4720 — new domain user created |
+
+Rule 100002 uses Wazuh's frequency correlation engine — not a single-event match.
 
 ---
 
