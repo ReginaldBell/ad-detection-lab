@@ -1,0 +1,338 @@
+---
+# ansible/playbooks/ticket01_osticket.yml
+# Deploys osTicket v1.18.1 on ticket01, configures the Apache vhost,
+# and enrolls the Wazuh agent.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.ini playbooks/ticket01_osticket.yml \
+#     --ask-vault-pass
+#
+# Run AFTER ticket01_lamp.yml completes successfully.
+# After this playbook finishes, complete the web installer at:
+#   http://192.168.56.105/osticket/setup/
+# Then run the post-install task tag to lock down permissions:
+#   ansible-playbook ... --tags post_install
+
+- name: ticket01 — osTicket Deployment
+  hosts: ticketing
+  become: true
+  # vars_files intentionally omitted — Ansible auto-loads group_vars/all/vault.yml
+  # when invoked with: ansible-playbook -i inventory/hosts.ini ... --ask-vault-pass
+
+  vars:
+    osticket_version: "1.18.1"
+    osticket_zip_url: "https://github.com/osTicket/osTicket/releases/download/v{{ osticket_version }}/osTicket-v{{ osticket_version }}.zip"
+    osticket_download_dest: "/tmp/osticket-v{{ osticket_version }}.zip"
+    osticket_extract_dir: "/tmp/osticket-extract"
+    osticket_web_root: "/var/www/html/osticket"
+    osticket_server_name: "ticket01.corp.techcorp.internal"
+    osticket_server_alias: "192.168.56.105"
+    osticket_log_dir: "/var/log/apache2"
+    wazuh_manager_ip: "192.168.56.50"
+    wazuh_agent_name: "ticket01"
+
+  tasks:
+
+    # -----------------------------------------------------------------------
+    # 1. Download & extract osTicket
+    # -----------------------------------------------------------------------
+    - name: Download osTicket v{{ osticket_version }} archive
+      get_url:
+        url: "{{ osticket_zip_url }}"
+        dest: "{{ osticket_download_dest }}"
+        mode: "0644"
+        timeout: 60
+      register: osticket_download
+
+    - name: Create extraction directory
+      file:
+        path: "{{ osticket_extract_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Check if upload dir already extracted
+      stat:
+        path: "{{ osticket_extract_dir }}/upload"
+      register: upload_dir_stat
+
+    - name: Extract osTicket archive
+      unarchive:
+        src: "{{ osticket_download_dest }}"
+        dest: "{{ osticket_extract_dir }}"
+        remote_src: true
+      when: not upload_dir_stat.stat.exists
+
+    - name: Create osTicket web root
+      file:
+        path: "{{ osticket_web_root }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: "0755"
+
+    - name: Copy upload/ contents to web root
+      copy:
+        src: "{{ osticket_extract_dir }}/upload/"
+        dest: "{{ osticket_web_root }}/"
+        remote_src: true
+        owner: www-data
+        group: www-data
+
+    # -----------------------------------------------------------------------
+    # 2. osTicket configuration file
+    # -----------------------------------------------------------------------
+    - name: Check if ost-config.php already exists
+      stat:
+        path: "{{ osticket_web_root }}/include/ost-config.php"
+      register: ost_config_stat
+
+    - name: Copy sample config to ost-config.php
+      copy:
+        src: "{{ osticket_web_root }}/include/ost-sampleconfig.php"
+        dest: "{{ osticket_web_root }}/include/ost-config.php"
+        remote_src: true
+        owner: www-data
+        group: www-data
+        mode: "0666"   # web installer requires write access; locked down post-install
+      when: not ost_config_stat.stat.exists
+
+    # -----------------------------------------------------------------------
+    # 3. Apache virtual host
+    # -----------------------------------------------------------------------
+    - name: Deploy osTicket Apache virtual host config
+      copy:
+        dest: /etc/apache2/sites-available/osticket.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          <VirtualHost *:80>
+              ServerName  {{ osticket_server_name }}
+              ServerAlias {{ osticket_server_alias }}
+              DocumentRoot {{ osticket_web_root }}
+
+              <Directory {{ osticket_web_root }}>
+                  Options -Indexes +FollowSymLinks
+                  AllowOverride All
+                  Require all granted
+              </Directory>
+
+              # Deny direct access to sensitive paths
+              <Directory {{ osticket_web_root }}/include>
+                  Require all denied
+              </Directory>
+              <Files "ost-config.php">
+                  Require all denied
+              </Files>
+
+              ErrorLog  {{ osticket_log_dir }}/osticket_error.log
+              CustomLog {{ osticket_log_dir }}/osticket_access.log combined
+          </VirtualHost>
+      notify: Reload Apache
+
+    - name: Enable osTicket site
+      command: a2ensite osticket.conf
+      args:
+        creates: /etc/apache2/sites-enabled/osticket.conf
+      notify: Reload Apache
+
+    - name: Disable default Apache site
+      command: a2dissite 000-default.conf
+      args:
+        removes: /etc/apache2/sites-enabled/000-default.conf
+      notify: Reload Apache
+
+    - name: Flush handlers (apply Apache changes before connectivity check)
+      meta: flush_handlers
+
+    # -----------------------------------------------------------------------
+    # 4. Connectivity verification (pre-web-installer)
+    # -----------------------------------------------------------------------
+    - name: Verify osTicket setup page is reachable
+      uri:
+        url: "http://localhost/osticket/setup/"
+        status_code: [200, 302]
+        timeout: 15
+      register: setup_check
+      retries: 3
+      delay: 5
+
+    - name: Display setup URL for browser completion
+      debug:
+        msg:
+          - "============================================================"
+          - " osTicket web installer is ready."
+          - " Open from any lab VM:"
+          - "   http://192.168.56.105/osticket/setup/"
+          - ""
+          - " Installer values:"
+          - "   Helpdesk Name : TechCorp IT Support"
+          - "   Admin Email   : admin@corp.techcorp.internal"
+          - "   DB Host       : localhost"
+          - "   DB Name       : osticket"
+          - "   DB User       : osticket_user"
+          - "   DB Pass       : <vault_osticket_db_password>"
+          - "   Admin Pass    : <vault_osticket_admin_password>"
+          - ""
+          - " After completing the installer, run:"
+          - "   ansible-playbook ... --tags post_install"
+          - "============================================================"
+
+    # -----------------------------------------------------------------------
+    # 5. Post-install lockdown (run AFTER completing the web installer)
+    # -----------------------------------------------------------------------
+    - name: Lock down ost-config.php (post-installer)
+      file:
+        path: "{{ osticket_web_root }}/include/ost-config.php"
+        mode: "0644"
+      tags: post_install
+
+    - name: Remove setup directory (post-installer)
+      file:
+        path: "{{ osticket_web_root }}/setup"
+        state: absent
+      tags: post_install
+
+    - name: Verify setup directory removed
+      stat:
+        path: "{{ osticket_web_root }}/setup"
+      register: setup_dir_stat
+      tags: post_install
+
+    - name: Assert setup directory is gone
+      assert:
+        that: not setup_dir_stat.stat.exists
+        fail_msg: "SECURITY: /setup still exists — remove it immediately."
+        success_msg: "Setup directory confirmed removed."
+      tags: post_install
+
+    # -----------------------------------------------------------------------
+    # 6. UFW Firewall
+    # -----------------------------------------------------------------------
+    - name: Install UFW
+      apt:
+        name: ufw
+        state: present
+
+    - name: Set UFW default incoming policy to deny
+      ufw:
+        default: deny
+        direction: incoming
+
+    - name: Set UFW default outgoing policy to allow
+      ufw:
+        default: allow
+        direction: outgoing
+
+    - name: Allow SSH from lab subnet
+      ufw:
+        rule: allow
+        src: "192.168.56.0/24"
+        port: "22"
+        proto: tcp
+
+    - name: Allow HTTP from lab subnet
+      ufw:
+        rule: allow
+        src: "192.168.56.0/24"
+        port: "80"
+        proto: tcp
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+
+    # -----------------------------------------------------------------------
+    # 7. Wazuh Agent Installation & Enrollment
+    # -----------------------------------------------------------------------
+    - name: Download Wazuh GPG key (armored)
+      get_url:
+        url: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+        dest: /tmp/GPG-KEY-WAZUH
+        mode: "0644"
+
+    - name: Dearmor and install Wazuh GPG key to trusted.gpg.d
+      shell: >
+        gpg --dearmor < /tmp/GPG-KEY-WAZUH
+        > /etc/apt/trusted.gpg.d/wazuh.gpg
+      args:
+        creates: /etc/apt/trusted.gpg.d/wazuh.gpg
+
+    - name: Remove temporary GPG key file
+      file:
+        path: /tmp/GPG-KEY-WAZUH
+        state: absent
+
+    - name: Add Wazuh apt repository
+      apt_repository:
+        repo: "deb https://packages.wazuh.com/4.x/apt/ stable main"
+        filename: wazuh
+        state: present
+        update_cache: true
+
+    - name: Install Wazuh agent
+      apt:
+        name: wazuh-agent
+        state: present
+
+    - name: Check if Wazuh agent is installed
+      command: dpkg -s wazuh-agent
+      register: wazuh_installed
+      changed_when: false
+      failed_when: false
+
+    - name: Enroll Wazuh agent
+      command: dpkg-reconfigure wazuh-agent
+      environment:
+        WAZUH_MANAGER: "{{ wazuh_manager_ip }}"
+        WAZUH_AGENT_NAME: "{{ wazuh_agent_name }}"
+      when: wazuh_installed.rc == 0
+      notify: Restart Wazuh Agent
+
+    - name: Configure Apache log collection for Wazuh
+      blockinfile:
+        path: /var/ossec/etc/ossec.conf
+        insertbefore: "</ossec_config>"
+        marker: "<!-- {mark} ANSIBLE MANAGED — osTicket Apache log -->"
+        block: |
+          <localfile>
+            <log_format>apache</log_format>
+            <location>/var/log/apache2/osticket_access.log</location>
+          </localfile>
+          <localfile>
+            <log_format>apache</log_format>
+            <location>/var/log/apache2/osticket_error.log</location>
+          </localfile>
+      when: wazuh_installed.rc == 0
+      notify: Restart Wazuh Agent
+
+    - name: Enable and start Wazuh agent
+      systemd:
+        name: wazuh-agent
+        state: started
+        enabled: true
+      when: wazuh_installed.rc == 0
+
+    # -----------------------------------------------------------------------
+    # 8. Cleanup temp files
+    # -----------------------------------------------------------------------
+    - name: Remove downloaded zip archive
+      file:
+        path: "{{ osticket_download_dest }}"
+        state: absent
+
+    - name: Remove extraction directory
+      file:
+        path: "{{ osticket_extract_dir }}"
+        state: absent
+
+  handlers:
+    - name: Reload Apache
+      systemd:
+        name: apache2
+        state: reloaded
+
+    - name: Restart Wazuh Agent
+      systemd:
+        name: wazuh-agent
+        state: restarted

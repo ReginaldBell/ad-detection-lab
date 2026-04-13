@@ -1,0 +1,236 @@
+#!/usr/bin/env python3
+# /var/ossec/integrations/custom-osticket
+#
+# Wazuh custom integration script — creates osTicket tickets from AD alerts.
+#
+# Invoked by Wazuh when a matching alert fires:
+#   argv[1] = path to alert JSON file  (written by Wazuh to /tmp/ossec-alert-*.json)
+#   argv[2] = API key                  (from <api_key> in ossec.conf integration block)
+#
+# Ownership/permissions on siem01:
+#   sudo chown root:ossec /var/ossec/integrations/custom-osticket
+#   sudo chmod 750        /var/ossec/integrations/custom-osticket
+#
+# Log file: /var/ossec/logs/custom-osticket.log
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# RULE MAP — populate IDs after completing Phase 0 manual reconnaissance.
+#
+# How to find osTicket IDs:
+#   Log in to http://192.168.56.105/scp/ as itadmin.
+#   Click each Department / SLA Plan / Help Topic and read the id= param in the URL.
+#
+# DEPT IDs  → Admin Panel > Staff > Departments
+# SLA IDs   → Admin Panel > Manage > SLA Plans
+# TOPIC IDs → Admin Panel > Manage > Help Topics
+# ─────────────────────────────────────────────────────────────────────────────
+
+import json
+import logging
+import sys
+import urllib.error
+import urllib.request
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+
+OSTICKET_URL = "http://192.168.56.105/api/tickets.json"
+OSTICKET_FROM_EMAIL = "wazuh-alert@example.com"
+OSTICKET_FROM_NAME = "Wazuh SIEM"
+LOG_FILE = "/var/ossec/logs/custom-osticket.log"
+
+# ── osTicket IDs ───────────────────────────────────────────────────────────────
+# Fill these in after completing Phase 0-A (gather IDs from osTicket admin panel).
+
+DEPT_IT_SUPPORT = 4   # IT Support department
+DEPT_SYSTEMS    = 6   # Systems department
+
+SLA_P2_HIGH     = 3   # P2-High (4hr/24x7)
+SLA_P3_NORMAL   = 4   # P3-Normal (8hr/biz hours)
+
+TOPIC_ACCT_LOCKOUT  = 14  # Account Lockout help topic
+TOPIC_NEW_USER      = 15  # New User Request help topic
+
+# ── Rule → Ticket Mapping ──────────────────────────────────────────────────────
+# Keys are Wazuh rule IDs (strings). Add more entries here as new scenarios are built.
+#
+# MITRE coverage (Wazuh Windows Event Channel rules):
+#   60115 → T1110.003  Event 4740  Account Locked Out
+#   60122 → T1110.003  Event 4625  Failed Logon (unknown user or bad password)
+#   60109 → T1136.001  Event 4720  User Account Created or Enabled
+
+RULE_MAP = {
+    "60115": {   # Windows Event 4740 — Account locked out (Wazuh Event Channel rule)
+        "dept_id":  DEPT_IT_SUPPORT,
+        "topic_id": TOPIC_ACCT_LOCKOUT,
+        "sla_id":   SLA_P2_HIGH,
+        "subject_template": "ALERT: Account Lockout — {user} on {computer}",
+        "mitre": "T1110.003",
+    },
+    "60122": {   # Windows Event 4625 — Failed logon, unknown user or bad password
+        "dept_id":  DEPT_IT_SUPPORT,
+        "topic_id": TOPIC_ACCT_LOCKOUT,
+        "sla_id":   SLA_P2_HIGH,
+        "subject_template": "ALERT: Repeated Failed Logon — {user} on {computer}",
+        "mitre": "T1110.003",
+    },
+    "60109": {   # Windows Event 4720/4722 — User account created or enabled
+        "dept_id":  DEPT_SYSTEMS,
+        "topic_id": TOPIC_NEW_USER,
+        "sla_id":   SLA_P3_NORMAL,
+        "subject_template": "ALERT: New AD Account Created — {user} on {computer}",
+        "mitre": "T1136.001",
+    },
+}
+
+# ── Logging setup ──────────────────────────────────────────────────────────────
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def build_message(alert, rule_id, mapping, target_user, subject_user, computer,
+                  agent_name, agent_ip, timestamp, rule_desc, rule_level):
+    """Build a structured, analyst-readable ticket message body."""
+    return (
+        "WAZUH SECURITY ALERT\n"
+        "====================\n"
+        f"Timestamp  : {timestamp}\n"
+        f"Agent      : {agent_name} ({agent_ip})\n"
+        f"Rule ID    : {rule_id}\n"
+        f"Rule Level : {rule_level}\n"
+        f"MITRE      : {mapping['mitre']}\n"
+        f"Description: {rule_desc}\n"
+        "\n"
+        "Event Details\n"
+        "-------------\n"
+        f"Affected Account : {target_user}\n"
+        f"Initiated By     : {subject_user}\n"
+        f"Source Computer  : {computer}\n"
+        "\n"
+        "Action Required\n"
+        "---------------\n"
+        "1. Verify whether this activity was authorized.\n"
+        "2. Account Lockout: re-enable account in AD only after root-cause analysis.\n"
+        "3. New Account: disable account and escalate if creation was unauthorized.\n"
+        "4. Explicit Creds: correlate with lateral movement indicators in Wazuh.\n"
+        "5. Document findings in this ticket before closing.\n"
+        "\n"
+        f"Source: Wazuh SIEM (siem01 @ 192.168.56.50)\n"
+        f"Dashboard: https://192.168.56.50"
+    )
+
+
+# ── Main ───────────────────────────────────────────────────────────────────────
+
+def main():
+    if len(sys.argv) < 3:
+        logging.error("Usage: custom-osticket <alert_file> <api_key>")
+        sys.exit(1)
+
+    alert_file = sys.argv[1]
+    api_key    = sys.argv[2]
+
+    # Parse alert JSON
+    try:
+        with open(alert_file, "r") as fh:
+            alert = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        logging.error(f"Failed to read alert file '{alert_file}': {exc}")
+        sys.exit(1)
+
+    # Extract rule metadata — all fields use .get() with fallbacks
+    rule       = alert.get("rule", {})
+    rule_id    = str(rule.get("id", ""))
+    rule_level = rule.get("level", 0)
+    rule_desc  = rule.get("description", "No description")
+
+    agent      = alert.get("agent", {})
+    agent_name = agent.get("name", "unknown-agent")
+    agent_ip   = agent.get("ip",   "unknown-ip")
+
+    timestamp  = alert.get("timestamp", "unknown-time")
+
+    # Windows event data — nested three levels deep; structure varies by agent OS
+    win_data   = alert.get("data", {}).get("win", {})
+    eventdata  = win_data.get("eventdata", {})
+    sys_data   = win_data.get("system", {})
+
+    target_user  = eventdata.get("targetUserName",  "unknown-user")
+    subject_user = eventdata.get("subjectUserName", "unknown-user")
+    computer     = sys_data.get("computer", agent_name)
+
+    # Look up rule in map — exit cleanly if not mapped (Wazuh level filter may
+    # deliver rules not in our map if they share a level with a mapped rule)
+    mapping = RULE_MAP.get(rule_id)
+    if not mapping:
+        logging.info(
+            f"Rule {rule_id} not in RULE_MAP — skipping ticket creation "
+            f"(agent={agent_name})"
+        )
+        sys.exit(0)
+
+    subject = mapping["subject_template"].format(
+        user=target_user, computer=computer
+    )
+    message = build_message(
+        alert, rule_id, mapping, target_user, subject_user, computer,
+        agent_name, agent_ip, timestamp, rule_desc, rule_level
+    )
+
+    payload = {
+        "name":    OSTICKET_FROM_NAME,
+        "email":   OSTICKET_FROM_EMAIL,
+        "subject": subject,
+        "message": message,
+        "topicId": mapping["topic_id"],
+        "deptId":  mapping["dept_id"],
+        "source":  "API",
+    }
+
+    body = json.dumps(payload).encode("utf-8")
+    req  = urllib.request.Request(
+        OSTICKET_URL,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-API-Key":    api_key,
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            response_body = resp.read().decode("utf-8")
+            logging.info(
+                f"Ticket created — rule={rule_id} mitre={mapping['mitre']} "
+                f"agent={agent_name} user={target_user} "
+                f"http={resp.status} response={response_body}"
+            )
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8")
+        logging.error(
+            f"HTTP error creating ticket — rule={rule_id} agent={agent_name} "
+            f"status={exc.code} body={error_body}"
+        )
+        sys.exit(1)
+    except urllib.error.URLError as exc:
+        logging.error(
+            f"Network error reaching osTicket — rule={rule_id} "
+            f"agent={agent_name} reason={exc.reason}"
+        )
+        sys.exit(1)
+    except Exception as exc:
+        logging.error(
+            f"Unexpected error — rule={rule_id} agent={agent_name} error={exc}"
+        )
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
