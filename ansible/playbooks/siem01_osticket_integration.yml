@@ -1,0 +1,154 @@
+---
+# ansible/playbooks/siem01_osticket_integration.yml
+#
+# Deploys the Wazuh-to-osTicket integration on siem01:
+#   1. Copies custom-osticket Python script to /var/ossec/integrations/
+#   2. Sets correct ownership (root:wazuh) and permissions (0750)
+#   3. Adds two <integration> blocks to /var/ossec/etc/ossec.conf
+#   4. Creates log file with root:wazuh 0660 (group-writable — integratord runs as wazuh)
+#   5. Validates osTicket API endpoint is reachable from siem01
+#   6. Restarts wazuh-manager to load the new integration config
+#
+# Rule IDs (Wazuh 4.7.5 Windows Event Channel):
+#   60115 = Event 4740 Account Locked Out (level 9)
+#   60122 = Event 4625 Failed Logon (level 5)
+#   60109 = Event 4720/4722 User Created/Enabled (level 8)
+#   NOTE: No <level> filter in integration blocks — rule_id alone is the selector.
+#
+# HARD STOP requirements before running:
+#   - T1110.003 (account lockout) must have been triggered and observed manually
+#   - The osTicket API key must be created in the admin panel and added to vault
+#   - You must have confirmed the curl test (Phase 0-D) succeeds from siem01
+#   - ossec.conf modification has been explicitly confirmed
+#
+# Prerequisites:
+#   - Phase 0 complete: osTicket IDs filled in ansible/playbooks/files/custom-osticket
+#   - vault_osticket_api_key added to ansible/group_vars/all/vault.yml
+#
+# Usage (from ansible/ directory):
+#   ansible-playbook -i inventory/hosts.ini playbooks/siem01_osticket_integration.yml \
+#     --private-key ~/.ssh/lab_key \
+#     --vault-password-file /tmp/vaultpass \
+#     -e @group_vars/all/vault.yml
+
+- name: siem01 — Deploy Wazuh-osTicket Integration
+  hosts: siem
+  become: true
+
+  vars:
+    integration_script_src:  "files/custom-osticket"
+    integration_script_dest: "/var/ossec/integrations/custom-osticket"
+    ossec_conf_path:         "/var/ossec/etc/ossec.conf"
+    integration_log_path:    "/var/ossec/logs/custom-osticket.log"
+    osticket_api_url:        "http://192.168.56.105/api/tickets.json"
+
+  tasks:
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Pre-flight: fail fast if vault key is missing
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Assert vault_osticket_api_key is defined
+      assert:
+        that: vault_osticket_api_key is defined and vault_osticket_api_key | length > 0
+        fail_msg: >
+          vault_osticket_api_key is not defined. Run with:
+          -e @group_vars/all/vault.yml --vault-password-file /tmp/vaultpass
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 1. Deploy integration script
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Copy custom-osticket integration script to siem01
+      copy:
+        src:   "{{ integration_script_src }}"
+        dest:  "{{ integration_script_dest }}"
+        owner: root
+        group: wazuh
+        mode:  "0750"
+
+    - name: Verify integration script permissions
+      stat:
+        path: "{{ integration_script_dest }}"
+      register: script_stat
+
+    - name: Assert integration script has correct mode (0750)
+      assert:
+        that: script_stat.stat.mode == "0750"
+        fail_msg: >
+          Integration script has unexpected permissions: {{ script_stat.stat.mode }}.
+          Expected 0750 (root:wazuh).
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 2. Create integration log file if it does not exist
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Create integration log file
+      file:
+        path:  "{{ integration_log_path }}"
+        state: touch
+        owner: root
+        group: wazuh
+        mode:  "0660"
+        modification_time: preserve
+        access_time:       preserve
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 3. Add integration blocks to ossec.conf
+    #    HARD STOP: ossec.conf modification confirmed before this playbook runs.
+    #    no_log: true on both tasks — API key appears inside the block content.
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Add Account Lockout integration block to ossec.conf
+      blockinfile:
+        path:         "{{ ossec_conf_path }}"
+        insertbefore: "</ossec_config>"
+        marker:       "<!-- {mark} ANSIBLE MANAGED — Wazuh-osTicket Integration: Account Lockout -->"
+        block: |
+          <integration>
+            <name>custom-osticket</name>
+            <hook_url>{{ osticket_api_url }}</hook_url>
+            <api_key>{{ vault_osticket_api_key }}</api_key>
+            <rule_id>60115,60122</rule_id>
+            <alert_format>json</alert_format>
+          </integration>
+      no_log: true
+      notify: Restart wazuh-manager
+
+    - name: Add User Creation integration block to ossec.conf
+      blockinfile:
+        path:         "{{ ossec_conf_path }}"
+        insertbefore: "</ossec_config>"
+        marker:       "<!-- {mark} ANSIBLE MANAGED — Wazuh-osTicket Integration: User Creation -->"
+        block: |
+          <integration>
+            <name>custom-osticket</name>
+            <hook_url>{{ osticket_api_url }}</hook_url>
+            <api_key>{{ vault_osticket_api_key }}</api_key>
+            <rule_id>60109</rule_id>
+            <alert_format>json</alert_format>
+          </integration>
+      no_log: true
+      notify: Restart wazuh-manager
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 4. Validate osTicket endpoint is reachable from siem01
+    #    GET on a POST-only endpoint returns 400 or 405 — both prove connectivity.
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Verify osTicket API endpoint is reachable from siem01
+      uri:
+        url:         "{{ osticket_api_url }}"
+        method:      GET
+        status_code: [200, 400, 405]
+        timeout:     10
+      register: osticket_check
+      failed_when: osticket_check.status not in [200, 400, 405]
+
+    - name: Confirm osTicket connectivity result
+      debug:
+        msg: >
+          osTicket API reachable — HTTP {{ osticket_check.status }}.
+          Integration log will be at: {{ integration_log_path }}
+
+  # ── Handlers ──────────────────────────────────────────────────────────────
+  handlers:
+    - name: Restart wazuh-manager
+      systemd:
+        name:  wazuh-manager
+        state: restarted

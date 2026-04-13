@@ -12,3 +12,7 @@ docs/copilot-commit-prompt.md
 # Credentials — keep local overrides out of the repo
 ansible/inventory.local.ini
 group_vars/local_vault.yml
+
+# Local runtime artifacts
+tmp_alerts.json
+.claude/
